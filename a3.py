@@ -1,5 +1,11 @@
+################################################################
+#                           IMPORTS 
+################################################################
+
 import pandas as pd
 import mlflow
+import math
+import numpy as np
 
 
 #for azure machine learning studio experiment tracking
@@ -26,65 +32,238 @@ from sklearn.impute import SimpleImputer
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.compose import ColumnTransformer
 
+
+
+################################################################
+#                       CUSTOM FUNCTIONS 
+################################################################
+
+def split_df(df):
+    """
+    For splitting a single dataframe into features (X) and labels (y)
+    
+    input:
+        df: a dataframe with the columns
+            ANM, Non-ANM, Total, Direction, Lead_hours, Source_time, Speed.
+    
+    Output:
+        X: Features to use for model
+        y: Labels to use for model
+
+    """
+    
+    X = df[["Direction", "Speed"]]
+    y = df[["Total"]]
+       
+    return X, y
+
+
+def direction_vector_encoder(wind_data):
+    """
+    Takes in the wind_data (numpy array) and transform the string representation of the wind direction
+    into a 2D vector representation - each of the dimensions of the vector with its own
+    column in the updated data
+    """
+
+    #dictionary to map wind direction to degrees
+    wind_encoder = {'NNE': 22.5,
+                    'NE': 45,
+                    'ENE': 67.5,
+                    'E': 90,
+                    'ESE': 112.5,
+                    'SE': 135,
+                    'SSE': 157.5,
+                    'S': 180,
+                    'SSW': 202.5,
+                    'SW': 225,
+                    'WSW': 247.5,
+                    'W': 270,
+                    'WNW': 292.5,
+                    'NW': 315,
+                    'NNW': 337.5,
+                    'N': 360}
+
+    #Convert to 'math direction' (degrees) --> as in this provided source: http://colaweb.gmu.edu/dev/clim301/lectures/wind/wind-uv
+    md = {k:(270-v if 270-v >=0 else (270-v+360)) for k,v in wind_encoder.items()}
+
+    #Convert the math degrees to radians
+    md_rad = {k:math.radians(v) for k,v in md.items()}
+
+    #Add exstra column in the front of the wind_np matrix
+    wind_data = np.c_[np.zeros(len(wind_data)), wind_data]
+
+    #Calculate the components of the vector and insert into the np matrix
+    for i in range(len(wind_data)):
+        u = wind_data[i, 2] * math.cos(md_rad[wind_data[i, 1]])
+        v = wind_data[i, 2] * math.sin(md_rad[wind_data[i, 1]])
+        wind_data[i, 0] = u
+        wind_data[i, 1] = v
+
+
+    return wind_data #output the updated data
+
+
+
+
+class Debugging(BaseEstimator, TransformerMixin):
+    """
+    For debbugging a pipeline, e.g. by getting the data or the shape of 
+    the data at the current step in the pipeline;
+        pipeline.named_steps[<name of key in pipeline>].data
+        pipeline.named_steps[<name of key in pipeline>].shape
+    """
+    def fit(self, X, y=None):
+        return self # nothing else to do
+    def transform(self, X, y=None):
+        self.shape = X.shape
+        self.data = X
+        return X      
+    
+    
+class WindDirToVec(BaseEstimator, TransformerMixin):
+    """
+    For converting the wind direction (string) to a vector representation.
+    This is done by calling the 'direction_vector_encoder()' created above
+    """
+    def __init__(self, run=True):
+        self.run = run
+    def fit(self, X, y=None):
+        return self
+    def transform(self, X, y=None):
+        #Only transform data if run==True
+        if self.run:
+            X2 = direction_vector_encoder(X)
+            return X2
+        else:
+            return X
+
+
+################################################################
+#                       THE PIPELINE 
+################################################################
+def pipe(model, wind_dir_to_vec=True):
+    """
+    Creates a pipeline to;
+        handle missing values,
+        encode string features (wind direction in this case),
+        add additional polynomial features
+        scale the data with the StandardScaler,
+        train a model of the type provided as an argument to the function
+
+    input:
+        model: A function object e.g. SVC (if SVC is imported from sklearn),
+               this model is the one used for predicting new values
+
+    output:
+        pipeline: A sklearn pipeline object, that takes care of imputing,
+        encoding and scaling the data
+    """
+
+    #Make pipeline for formatting data
+    pipeline = Pipeline([
+
+        #Impute data
+        ('missing', ColumnTransformer([
+            ("imputeStr", SimpleImputer(strategy='most_frequent'), [0]),
+            ("imputeNum", SimpleImputer(strategy='mean'), [1])
+        ], remainder='passthrough')),
+
+
+
+        #Encode wind direction (ONE HOT)
+        #('encode', ColumnTransformer([
+        #    ("encodeStr", OneHotEncoder(sparse=False), [0])], remainder='passthrough')),
+
+        #Encode wind direction (2D VEC)
+        ('encode', WindDirToVec(wind_dir_to_vec)),
+
+        #Make sure you can see the data before additional features are added
+        ('debug1', Debugging()),
+
+        #Add poly-features
+        ('poly_features', PolynomialFeatures()),
+
+        #Make sure you can see the data before it gets scaled
+        ('debug2', Debugging()),
+
+        #Scale data
+        ('std_scaler', StandardScaler()),
+
+        #Add regression model
+        ('model', model)
+    ])
+
+    return pipeline
+
+
+
+################################################################
+#                       THE MLFLOW RUN 
+################################################################
+
 #Start a run
 with mlflow.start_run(run_name="test code"):
     df = pd.read_json("./dataset.json", orient="split")
+
+    #Only keep rows where there are no missing values along the "Direction" column
+    # This corresponds to all the rows that have no missing values along all columns
+    complete_data = df[~df["Direction"].isnull()]
     
-    print(df)
-    # TO DO: Handle missing data
 
-    pipeline = Pipeline([
-            #impute missing data
-            ('missing', ColumnTransformer([
-                ("impute_wind", SimpleImputer(strategy='mean'), [0]),
-                ("impute_direction", SimpleImputer(strategy='most_frequent'), [1]),
-                ("impute_total", SimpleImputer(strategy='mean'), [2])
-                ]))
-
-            #encode winddirection
-
-            #add polyfeatures
-
-            #scale data
-
-            #add model
-        ])
-
-
+    #TO DO: Currently the only metric is MAE. You should add more. What other metrics could you use? why?
     metrics = [
             ("MAE", mean_absolute_error, []),
             ]
 
-    X = df[["Speed", "Direction"]]
-    y = df[["Total"]]
-    
-    #print(X.mean())
-    #print(y)
+    X, y = split_df(complete_data)
 
     number_of_splits = 5
 
     # TO DO: log your parameters. What parameters are important to log?
     # HINT: You can get access to the transformers in your pipeline using 'pipeline.steps'
 
-    #for train, test in TimeSeriesSplit(number_of_splits).split(X,y):
-    #    pipeline.fit(X.iloc[train], y.iloc[train])
-    #    predictions = pipeline.predict(X.iloc[test])
-    #    truth = y.iloc[test]
-    #    
-    #    plt.plot(truth.index, truth.values, label="Truth")
-    #    plt.plot(truth.index, predictions, label="Predictions")
-    #    plt.show()
+    linr = LinearRegression()
 
-    #    # calculate and save the metrics for this fold
-    #    for name, func, scores in metrics:
-    #        score = func(truth, predictions)
-    #        scores.append()
+    for train, test in TimeSeriesSplit(number_of_splits).split(X,y):
+        pipeline = pipe(linr)
+        pipeline.fit(X.iloc[train], y.iloc[train])
+        predictions = pipeline.predict(X.iloc[test])
+        truth = y.iloc[test]
+        
+        print(predictions)
 
-    ##Log a summary of the metrics
-    #for name, _, scores in metrics:
-    #    # NOTe: Here we just log the mean of the scores.
-    #    # Are there other summarizations that could be interesting?
-    #    mean_score = sum(scores)/number_of_splits
-    #    mlflow.log_metric(f"mean_{name}", mean_score)
+        def get_fig_ax(title=None, xlabel=None, ylabel=None, figsize=(6, 4)):
+            '''Create an annotated figure. Returns fig, ax matplotlib objects '''
+            fig = plt.figure(figsize=figsize)
+            ax = fig.add_axes([0, 0, 1, 1])
+
+            if title is not None:
+                ax.set_title(title)
+            if xlabel is not None:
+                ax.set_xlabel(xlabel)
+            if ylabel is not None:
+                ax.set_ylabel(ylabel)
+
+            return fig, ax
+        
+        fig = plt.figure()
+        ax = fig.add_axes([0.2,0.2,0.7,0.7])
+        ax.plot(truth.index, truth.values, label="Truth")
+        ax.plot(truth.index, predictions, label="Predictions")
+        fig.legend()
+        fig.autofmt_xdate(rotation=45)
+        plt.show()
+
+        # calculate and save the metrics for this fold
+        for name, func, scores in metrics:
+            score = func(truth, predictions)
+            scores.append(score)
+
+    #Log a summary of the metrics
+    for name, _, scores in metrics:
+        # NOTe: Here we just log the mean of the scores.
+        # Are there other summarizations that could be interesting?
+        mean_score = sum(scores)/number_of_splits
+        mlflow.log_metric(f"mean_{name}", mean_score)
 
 
