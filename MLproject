@@ -1,0 +1,7 @@
+name: a3_model
+
+conda_env: conda.yaml
+
+entry_points:
+    main:
+        command: "python3 a3.py"
