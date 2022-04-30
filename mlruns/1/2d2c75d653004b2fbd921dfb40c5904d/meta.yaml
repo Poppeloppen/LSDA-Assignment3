@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/home/Desktop/ITU/4_semester/LSDA/assignments/3_assignment/LSDA-Assignment3/mlruns/1/2d2c75d653004b2fbd921dfb40c5904d/artifacts
+end_time: 1651336488702
+entry_point_name: ''
+experiment_id: '1'
+lifecycle_stage: active
+name: ''
+run_id: 2d2c75d653004b2fbd921dfb40c5904d
+run_uuid: 2d2c75d653004b2fbd921dfb40c5904d
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1651336481472
+status: 3
+tags: []
+user_id: home

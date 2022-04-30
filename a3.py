@@ -9,9 +9,9 @@ import numpy as np
 
 
 #for azure machine learning studio experiment tracking
-from azureml.core import Workspace
-ws = Workspace.from_config()
-mlflow.set_tracking_uri(ws.get_mlflow_tracking_uri())
+#from azureml.core import Workspace
+#ws = Workspace.from_config()
+#mlflow.set_tracking_uri(ws.get_mlflow_tracking_uri())
 
 
 #Set experiment name
