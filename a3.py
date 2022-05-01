@@ -16,14 +16,12 @@ mlflow.set_tracking_uri(ws.get_mlflow_tracking_uri())
 
 #Set experiment name
 #mlflow.set_experiment("vhen - Experiments")
-mlflow.set_experiment("TEST")
+mlflow.set_experiment("TEST - XGBRegressor2")
 
 #Import usefull libraries
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler, OneHotEncoder
 from sklearn.linear_model import LinearRegression
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn.svm import SVR
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
@@ -33,6 +31,7 @@ import matplotlib.pyplot as plt
 from sklearn.impute import SimpleImputer
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.compose import ColumnTransformer
+from xgboost import XGBRegressor
 
 
 
@@ -208,7 +207,7 @@ def pipe(model, degree, wind_dir_to_vec=True):
         ('debug1', Debugging()),
 
         #Add poly-features
-        ('poly_features', PolynomialFeatures(degree=degree)),
+        ('poly_features', Poly(degree=degree, run=False)),
 
         #Make sure you can see the data before it gets scaled
         ('debug2', Debugging()),
@@ -229,23 +228,23 @@ def pipe(model, degree, wind_dir_to_vec=True):
 ################################################################
 
 params = {"number_of_splits": [2,5,10],
-        "number_of_poly_degree": [1,2,3,4,5],
+        "learning_rate": [0.0001, 0.001, 0.01, 0.2, 0.3],
         "n_estimators": [10, 50, 100, 200, 500],
         "max_depth": [1,2,3,4,5]
         }
 
 for splits in params["number_of_splits"]:
-    for degree in params["number_of_poly_degree"]:
+    for learning_rate in params["learning_rate"]:
         for estimators in params["n_estimators"]:
             for depth in params["max_depth"]:
                 print("# of splits: ", splits)
-                print("# of degree: ", degree)
+                print("learning_rate: ", learning_rate)
                 print("# estimators: ", estimators)
                 print("max depth: ", depth)
-                print('#' * 100)
+                print('#' * 90)
 
                 #Start a run
-                with mlflow.start_run(run_name="RandomForestRegressor"):
+                with mlflow.start_run(run_name="XGBRegressor"):
                     df = pd.read_json("./dataset.json", orient="split")
                 
                     #Only keep rows where there are no missing values along the "Direction" column
@@ -266,7 +265,7 @@ for splits in params["number_of_splits"]:
                     # Hyperparameters
                     #######################
                     parameters = {"number_of_splits": splits,    #To do in crossvali
-                            "number_of_poly_degree": degree, #DOES THIS MAKES SENSE WHEN NOT DOING LINREG?!
+                            "learning_rate": learning_rate, #DOES THIS MAKES SENSE WHEN NOT DOING LINREG?!
                             "n_estimators": estimators,
                             "max_depth": depth}
                 
@@ -274,12 +273,13 @@ for splits in params["number_of_splits"]:
                     # TO DO: log your parameters. What parameters are important to log?
                     # HINT: You can get access to the transformers in your pipeline using 'pipeline.steps'
                 
-                    model = RandomForestRegressor(n_estimators=estimators,
-                                                    max_depth=depth)
+                    model = XGBRegressor(n_estimators=estimators,
+                                            max_depth = depth,
+                                            learning_rate = learning_rate)
                 
                 
                     for train, test in TimeSeriesSplit(splits).split(X,y):
-                        pipeline = pipe(model, degree)
+                        pipeline = pipe(model, degree = 2)
                         pipeline.fit(X.iloc[train], y.iloc[train].values.ravel())
                         predictions = pipeline.predict(X.iloc[test])
                         truth = y.iloc[test]
