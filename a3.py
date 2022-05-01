@@ -9,9 +9,9 @@ import numpy as np
 
 
 #for azure machine learning studio experiment tracking
-#from azureml.core import Workspace
-#ws = Workspace.from_config()
-#mlflow.set_tracking_uri(ws.get_mlflow_tracking_uri())
+from azureml.core import Workspace
+ws = Workspace.from_config()
+mlflow.set_tracking_uri(ws.get_mlflow_tracking_uri())
 
 
 #Set experiment name
@@ -138,10 +138,33 @@ class WindDirToVec(BaseEstimator, TransformerMixin):
             return X
 
 
+class Poly(BaseEstimator, TransformerMixin):
+    """
+    Make sure the PolynomialFeatures option is optional in the pipeline below,
+    And also make sure that one can provide different degrees to the PolynomialFeatures
+    library
+    """
+    def __init__(self, degree, run=True):
+        self.run = run
+        self.degree = degree
+    def fit(self, X, y=None):
+        return self
+    def transform(self, X, y=None):
+        #Only transform data if run==True
+        if self.run:
+            X2 = PolynomialFeatures(degree)
+            return X2
+        else:
+            return X
+
+
+
+
+
 ################################################################
 #                       THE PIPELINE 
 ################################################################
-def pipe(model, wind_dir_to_vec=True):
+def pipe(model, degree, wind_dir_to_vec=True):
     """
     Creates a pipeline to;
         handle missing values,
@@ -153,6 +176,8 @@ def pipe(model, wind_dir_to_vec=True):
     input:
         model: A function object e.g. SVC (if SVC is imported from sklearn),
                this model is the one used for predicting new values
+        wind_dir_to_vec: Encode the winddirection as a vector, standard = True
+        degree: The degree used by PolynomialFeatures
 
     output:
         pipeline: A sklearn pipeline object, that takes care of imputing,
@@ -181,7 +206,7 @@ def pipe(model, wind_dir_to_vec=True):
         ('debug1', Debugging()),
 
         #Add poly-features
-        ('poly_features', PolynomialFeatures()),
+        ('poly_features', PolynomialFeatures(degree=degree)),
 
         #Make sure you can see the data before it gets scaled
         ('debug2', Debugging()),
@@ -213,38 +238,29 @@ with mlflow.start_run(run_name="test code"):
     #TO DO: Currently the only metric is MAE. You should add more. What other metrics could you use? why?
     metrics = [
             ("MAE", mean_absolute_error, []),
+            ("MSE", mean_squared_error, []),
+            ("r2", r2_score, []) 
             ]
 
     X, y = split_df(complete_data)
-
-    number_of_splits = 5
-
+    
+    #######################
+    # Hyperparameters
+    #######################
+    params = {"number_of_splits": 5, "number_of_poly_degree": 5}
+    mlflow.log_params(params)
+    
+    print(params["number_of_splits"])
     # TO DO: log your parameters. What parameters are important to log?
     # HINT: You can get access to the transformers in your pipeline using 'pipeline.steps'
 
     linr = LinearRegression()
 
-    for train, test in TimeSeriesSplit(number_of_splits).split(X,y):
-        pipeline = pipe(linr)
+    for train, test in TimeSeriesSplit(params["number_of_splits"]).split(X,y):
+        pipeline = pipe(linr, params["number_of_poly_degree"])
         pipeline.fit(X.iloc[train], y.iloc[train])
         predictions = pipeline.predict(X.iloc[test])
         truth = y.iloc[test]
-        
-        print(predictions)
-
-        def get_fig_ax(title=None, xlabel=None, ylabel=None, figsize=(6, 4)):
-            '''Create an annotated figure. Returns fig, ax matplotlib objects '''
-            fig = plt.figure(figsize=figsize)
-            ax = fig.add_axes([0, 0, 1, 1])
-
-            if title is not None:
-                ax.set_title(title)
-            if xlabel is not None:
-                ax.set_xlabel(xlabel)
-            if ylabel is not None:
-                ax.set_ylabel(ylabel)
-
-            return fig, ax
         
         fig = plt.figure()
         ax = fig.add_axes([0.2,0.2,0.7,0.7])
@@ -263,7 +279,11 @@ with mlflow.start_run(run_name="test code"):
     for name, _, scores in metrics:
         # NOTe: Here we just log the mean of the scores.
         # Are there other summarizations that could be interesting?
-        mean_score = sum(scores)/number_of_splits
+        mean_score = sum(scores)/params["number_of_splits"]
         mlflow.log_metric(f"mean_{name}", mean_score)
+
+
+        # Make sure to track the hyper-parameters, eg. degrees in PolynomialFeatures
+        #mlflow.log_params()
 
 
