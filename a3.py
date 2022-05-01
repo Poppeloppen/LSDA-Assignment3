@@ -15,7 +15,7 @@ mlflow.set_tracking_uri(ws.get_mlflow_tracking_uri())
 
 
 #Set experiment name
-mlflow.set_experiment("vhen - test (provided code)")
+mlflow.set_experiment("vhen - Experiments")
 
 #Import usefull libraries
 from sklearn.pipeline import Pipeline
@@ -23,6 +23,7 @@ from sklearn.preprocessing import PolynomialFeatures, StandardScaler, OneHotEnco
 from sklearn.linear_model import LinearRegression
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.svm import SVR
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import matplotlib.pyplot as plt
@@ -227,7 +228,7 @@ def pipe(model, degree, wind_dir_to_vec=True):
 ################################################################
 
 #Start a run
-with mlflow.start_run(run_name="test code"):
+with mlflow.start_run(run_name="LinearRegression"):
     df = pd.read_json("./dataset.json", orient="split")
 
     #Only keep rows where there are no missing values along the "Direction" column
@@ -247,10 +248,10 @@ with mlflow.start_run(run_name="test code"):
     #######################
     # Hyperparameters
     #######################
-    params = {"number_of_splits": 5, "number_of_poly_degree": 5}
+    params = {"number_of_splits": 10, "number_of_poly_degree": 5}
     mlflow.log_params(params)
     
-    print(params["number_of_splits"])
+    print(params["number_of_splits"], params["number_of_poly_degree"],)
     # TO DO: log your parameters. What parameters are important to log?
     # HINT: You can get access to the transformers in your pipeline using 'pipeline.steps'
 
@@ -262,13 +263,13 @@ with mlflow.start_run(run_name="test code"):
         predictions = pipeline.predict(X.iloc[test])
         truth = y.iloc[test]
         
-        fig = plt.figure()
-        ax = fig.add_axes([0.2,0.2,0.7,0.7])
-        ax.plot(truth.index, truth.values, label="Truth")
-        ax.plot(truth.index, predictions, label="Predictions")
-        fig.legend()
-        fig.autofmt_xdate(rotation=45)
-        plt.show()
+        #fig = plt.figure()
+        #ax = fig.add_axes([0.2,0.2,0.7,0.7])
+        #ax.plot(truth.index, truth.values, label="Truth")
+        #ax.plot(truth.index, predictions, label="Predictions")
+        #fig.legend()
+        #fig.autofmt_xdate(rotation=45)
+        #plt.show()
 
         # calculate and save the metrics for this fold
         for name, func, scores in metrics:
