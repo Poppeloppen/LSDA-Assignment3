@@ -15,7 +15,8 @@ mlflow.set_tracking_uri(ws.get_mlflow_tracking_uri())
 
 
 #Set experiment name
-mlflow.set_experiment("vhen - Experiments")
+#mlflow.set_experiment("vhen - Experiments")
+mlflow.set_experiment("TEST")
 
 #Import usefull libraries
 from sklearn.pipeline import Pipeline
@@ -227,64 +228,172 @@ def pipe(model, degree, wind_dir_to_vec=True):
 #                       THE MLFLOW RUN 
 ################################################################
 
+params = {"number_of_splits": [2,5,10],
+        "number_of_poly_degree": [1,2,3,4,5],
+        "n_estimators": [10, 50, 100, 200, 500],
+        "max_depth": [1,2,3,4,5]
+        }
+
+for splits in params["number_of_splits"]:
+    for degree in params["number_of_poly_degree"]:
+        for estimators in params["n_estimators"]:
+            for depth in params["max_depth"]:
+                print("# of splits: ", splits)
+                print("# of degree: ", degree)
+                print("# estimators: ", estimators)
+                print("max depth: ", depth)
+                print('#' * 100)
+
+                #Start a run
+                with mlflow.start_run(run_name="RandomForestRegressor"):
+                    df = pd.read_json("./dataset.json", orient="split")
+                
+                    #Only keep rows where there are no missing values along the "Direction" column
+                    # This corresponds to all the rows that have no missing values along all columns
+                    complete_data = df[~df["Direction"].isnull()]
+                    
+                
+                    #TO DO: Currently the only metric is MAE. You should add more. What other metrics could you use? why?
+                    metrics = [
+                            ("MAE", mean_absolute_error, []),
+                            ("MSE", mean_squared_error, []),
+                            ("r2", r2_score, []) 
+                            ]
+                
+                    X, y = split_df(complete_data)
+                    
+                    #######################
+                    # Hyperparameters
+                    #######################
+                    parameters = {"number_of_splits": splits,    #To do in crossvali
+                            "number_of_poly_degree": degree, #DOES THIS MAKES SENSE WHEN NOT DOING LINREG?!
+                            "n_estimators": estimators,
+                            "max_depth": depth}
+                
+                    mlflow.log_params(parameters)
+                    # TO DO: log your parameters. What parameters are important to log?
+                    # HINT: You can get access to the transformers in your pipeline using 'pipeline.steps'
+                
+                    model = RandomForestRegressor(n_estimators=estimators,
+                                                    max_depth=depth)
+                
+                
+                    for train, test in TimeSeriesSplit(splits).split(X,y):
+                        pipeline = pipe(model, degree)
+                        pipeline.fit(X.iloc[train], y.iloc[train].values.ravel())
+                        predictions = pipeline.predict(X.iloc[test])
+                        truth = y.iloc[test]
+                        
+                        #fig = plt.figure()
+                        #ax = fig.add_axes([0.2,0.2,0.7,0.7])
+                        #ax.plot(truth.index, truth.values, label="Truth")
+                        #ax.plot(truth.index, predictions, label="Predictions")
+                        #fig.legend()
+                        #fig.autofmt_xdate(rotation=45)
+                        #plt.show()
+                
+                        # calculate and save the metrics for this fold
+                        for name, func, scores in metrics:
+                            score = func(truth, predictions)
+                            scores.append(score)
+                
+                    #Log a summary of the metrics
+                    for name, _, scores in metrics:
+                        # NOTe: Here we just log the mean of the scores.
+                        # Are there other summarizations that could be interesting?
+                        mean_score = sum(scores)/splits
+                        mlflow.log_metric(f"mean_{name}", mean_score)
+                
+
+                        # Make sure to track the hyper-parameters, eg. degrees in PolynomialFeatures
+                        #mlflow.log_params()
+                
+                
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #Start a run
-with mlflow.start_run(run_name="LinearRegression"):
-    df = pd.read_json("./dataset.json", orient="split")
-
-    #Only keep rows where there are no missing values along the "Direction" column
-    # This corresponds to all the rows that have no missing values along all columns
-    complete_data = df[~df["Direction"].isnull()]
-    
-
-    #TO DO: Currently the only metric is MAE. You should add more. What other metrics could you use? why?
-    metrics = [
-            ("MAE", mean_absolute_error, []),
-            ("MSE", mean_squared_error, []),
-            ("r2", r2_score, []) 
-            ]
-
-    X, y = split_df(complete_data)
-    
-    #######################
-    # Hyperparameters
-    #######################
-    params = {"number_of_splits": 10, "number_of_poly_degree": 5}
-    mlflow.log_params(params)
-    
-    print(params["number_of_splits"], params["number_of_poly_degree"],)
-    # TO DO: log your parameters. What parameters are important to log?
-    # HINT: You can get access to the transformers in your pipeline using 'pipeline.steps'
-
-    linr = LinearRegression()
-
-    for train, test in TimeSeriesSplit(params["number_of_splits"]).split(X,y):
-        pipeline = pipe(linr, params["number_of_poly_degree"])
-        pipeline.fit(X.iloc[train], y.iloc[train])
-        predictions = pipeline.predict(X.iloc[test])
-        truth = y.iloc[test]
-        
-        #fig = plt.figure()
-        #ax = fig.add_axes([0.2,0.2,0.7,0.7])
-        #ax.plot(truth.index, truth.values, label="Truth")
-        #ax.plot(truth.index, predictions, label="Predictions")
-        #fig.legend()
-        #fig.autofmt_xdate(rotation=45)
-        #plt.show()
-
-        # calculate and save the metrics for this fold
-        for name, func, scores in metrics:
-            score = func(truth, predictions)
-            scores.append(score)
-
-    #Log a summary of the metrics
-    for name, _, scores in metrics:
-        # NOTe: Here we just log the mean of the scores.
-        # Are there other summarizations that could be interesting?
-        mean_score = sum(scores)/params["number_of_splits"]
-        mlflow.log_metric(f"mean_{name}", mean_score)
-
-
-        # Make sure to track the hyper-parameters, eg. degrees in PolynomialFeatures
-        #mlflow.log_params()
-
-
+#with mlflow.start_run(run_name="RandomForestRegressor"):
+#    df = pd.read_json("./dataset.json", orient="split")
+#
+#    #Only keep rows where there are no missing values along the "Direction" column
+#    # This corresponds to all the rows that have no missing values along all columns
+#    complete_data = df[~df["Direction"].isnull()]
+#    
+#
+#    #TO DO: Currently the only metric is MAE. You should add more. What other metrics could you use? why?
+#    metrics = [
+#            ("MAE", mean_absolute_error, []),
+#            ("MSE", mean_squared_error, []),
+#            ("r2", r2_score, []) 
+#            ]
+#
+#    X, y = split_df(complete_data)
+#    
+#    #######################
+#    # Hyperparameters
+#    #######################
+#    params = {"number_of_splits": 5,    #To do in crossvali
+#            "number_of_poly_degree": 1, #DOES THIS MAKES SENSE WHEN NOT DOING LINREG?!
+#            "n_estimators": 500,
+#            "max_depth": 5}
+#
+#    mlflow.log_params(params)
+#    
+#    print("# of splits: ", params["number_of_splits"])
+#    print("# of degree: ", params["number_of_poly_degree"])
+#    print("# estimators: ", params["n_estimators"])
+#    print("max depth: ", params["max_depth"])
+#    # TO DO: log your parameters. What parameters are important to log?
+#    # HINT: You can get access to the transformers in your pipeline using 'pipeline.steps'
+#
+#    model = RandomForestRegressor(n_estimators=params['n_estimators'],
+#                                    max_depth=params['max_depth'])
+#
+#
+#    for train, test in TimeSeriesSplit(params["number_of_splits"]).split(X,y):
+#        pipeline = pipe(model, params["number_of_poly_degree"])
+#        pipeline.fit(X.iloc[train], y.iloc[train].values.ravel())
+#        predictions = pipeline.predict(X.iloc[test])
+#        truth = y.iloc[test]
+#        
+#        #fig = plt.figure()
+#        #ax = fig.add_axes([0.2,0.2,0.7,0.7])
+#        #ax.plot(truth.index, truth.values, label="Truth")
+#        #ax.plot(truth.index, predictions, label="Predictions")
+#        #fig.legend()
+#        #fig.autofmt_xdate(rotation=45)
+#        #plt.show()
+#
+#        # calculate and save the metrics for this fold
+#        for name, func, scores in metrics:
+#            score = func(truth, predictions)
+#            scores.append(score)
+#
+#    #Log a summary of the metrics
+#    for name, _, scores in metrics:
+#        # NOTe: Here we just log the mean of the scores.
+#        # Are there other summarizations that could be interesting?
+#        mean_score = sum(scores)/params["number_of_splits"]
+#        mlflow.log_metric(f"mean_{name}", mean_score)
+#
+#
+#        # Make sure to track the hyper-parameters, eg. degrees in PolynomialFeatures
+#        #mlflow.log_params()
+#
+#
