@@ -11,6 +11,5 @@ dependencies:
   - python=3.9.7
   - scikit-learn=0.24.2
   - pip:
-    - azureml-core==1.40.0.post2
-    - azureml-flow==1.40.0
+    - azureml-core==1.41.0
     - xgboost==1.6.0
