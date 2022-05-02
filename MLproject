@@ -3,14 +3,14 @@ name: a3_model
 conda_env: conda.yaml
 
 entry_points:
-    #For training a lot of models
-    train:
-        command: "python3 a3.py
-    
-    #For finding the run with the best performance
-    find_best:
-        command: "python3 best_model.py"
-    
-    #Query the best model
-    main:
-        command: "python3 get_pred.py"
+  #For training a lot of models
+  train:
+    command: "python3 a3.py"
+
+  #For finding the run with the best performance
+  find_best:
+    command: "python3 best_model.py"
+
+  #Query the best model
+  main:
+    command: "python3 get_pred.py"

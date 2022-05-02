@@ -1,4 +1,5 @@
 """Should contain the pipeline and the best performing model, should be able to get prediction"""
+import mlflow
 
 #for azure machine learning studio experiment tracking
 from azureml.core import Workspace

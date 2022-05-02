@@ -1,4 +1,5 @@
 """Look through all the mlflow runs on azure and save the best model"""
+import mlflow
 
 #for azure machine learning studio experiment tracking
 from azureml.core import Workspace
