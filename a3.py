@@ -312,6 +312,7 @@ for splits in params["number_of_splits"]:
     
 
 
+#ws.experiments()
 
 
 
@@ -323,77 +324,3 @@ for splits in params["number_of_splits"]:
 
 
 
-
-
-
-
-#Start a run
-#with mlflow.start_run(run_name="RandomForestRegressor"):
-#    df = pd.read_json("./dataset.json", orient="split")
-#
-#    #Only keep rows where there are no missing values along the "Direction" column
-#    # This corresponds to all the rows that have no missing values along all columns
-#    complete_data = df[~df["Direction"].isnull()]
-#    
-#
-#    #TO DO: Currently the only metric is MAE. You should add more. What other metrics could you use? why?
-#    metrics = [
-#            ("MAE", mean_absolute_error, []),
-#            ("MSE", mean_squared_error, []),
-#            ("r2", r2_score, []) 
-#            ]
-#
-#    X, y = split_df(complete_data)
-#    
-#    #######################
-#    # Hyperparameters
-#    #######################
-#    params = {"number_of_splits": 5,    #To do in crossvali
-#            "number_of_poly_degree": 1, #DOES THIS MAKES SENSE WHEN NOT DOING LINREG?!
-#            "n_estimators": 500,
-#            "max_depth": 5}
-#
-#    mlflow.log_params(params)
-#    
-#    print("# of splits: ", params["number_of_splits"])
-#    print("# of degree: ", params["number_of_poly_degree"])
-#    print("# estimators: ", params["n_estimators"])
-#    print("max depth: ", params["max_depth"])
-#    # TO DO: log your parameters. What parameters are important to log?
-#    # HINT: You can get access to the transformers in your pipeline using 'pipeline.steps'
-#
-#    model = RandomForestRegressor(n_estimators=params['n_estimators'],
-#                                    max_depth=params['max_depth'])
-#
-#
-#    for train, test in TimeSeriesSplit(params["number_of_splits"]).split(X,y):
-#        pipeline = pipe(model, params["number_of_poly_degree"])
-#        pipeline.fit(X.iloc[train], y.iloc[train].values.ravel())
-#        predictions = pipeline.predict(X.iloc[test])
-#        truth = y.iloc[test]
-#        
-#        #fig = plt.figure()
-#        #ax = fig.add_axes([0.2,0.2,0.7,0.7])
-#        #ax.plot(truth.index, truth.values, label="Truth")
-#        #ax.plot(truth.index, predictions, label="Predictions")
-#        #fig.legend()
-#        #fig.autofmt_xdate(rotation=45)
-#        #plt.show()
-#
-#        # calculate and save the metrics for this fold
-#        for name, func, scores in metrics:
-#            score = func(truth, predictions)
-#            scores.append(score)
-#
-#    #Log a summary of the metrics
-#    for name, _, scores in metrics:
-#        # NOTe: Here we just log the mean of the scores.
-#        # Are there other summarizations that could be interesting?
-#        mean_score = sum(scores)/params["number_of_splits"]
-#        mlflow.log_metric(f"mean_{name}", mean_score)
-#
-#
-#        # Make sure to track the hyper-parameters, eg. degrees in PolynomialFeatures
-#        #mlflow.log_params()
-#
-#
