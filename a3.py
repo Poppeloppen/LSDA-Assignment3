@@ -16,7 +16,7 @@ mlflow.set_tracking_uri(ws.get_mlflow_tracking_uri())
 
 #Set experiment name
 #mlflow.set_experiment("vhen - Experiments")
-mlflow.set_experiment("TEST_XGBRegressor2")
+mlflow.set_experiment("TEST_RandomForestRegressor")
 
 #Import usefull libraries
 from sklearn.pipeline import Pipeline
@@ -228,23 +228,23 @@ def pipe(model, degree, wind_dir_to_vec=True):
 ################################################################
 
 params = {"number_of_splits": [2,5,10],
-        "learning_rate": [0.0001, 0.001, 0.01, 0.2, 0.3],
+        "degree": [1],
         "n_estimators": [10, 50, 100, 200, 500],
         "max_depth": [1,2,3,4,5]
         }
 
 for splits in params["number_of_splits"]:
-    for learning_rate in params["learning_rate"]:
+    for degree in params["degree"]:
         for estimators in params["n_estimators"]:
             for depth in params["max_depth"]:
                 print("# of splits: ", splits)
-                print("learning_rate: ", learning_rate)
+                print("Degree ", degree)
                 print("# estimators: ", estimators)
                 print("max depth: ", depth)
                 print('#' * 90)
 
                 #Start a run
-                with mlflow.start_run(run_name="XGBRegressor"):
+                with mlflow.start_run(run_name="RandomForestRegressor"):
                     df = pd.read_json("./dataset.json", orient="split")
                 
                     #Only keep rows where there are no missing values along the "Direction" column
@@ -265,7 +265,7 @@ for splits in params["number_of_splits"]:
                     # Hyperparameters
                     #######################
                     parameters = {"number_of_splits": splits,    #To do in crossvali
-                            "learning_rate": learning_rate, #DOES THIS MAKES SENSE WHEN NOT DOING LINREG?!
+                            "degree": degree, #DOES THIS MAKES SENSE WHEN NOT DOING LINREG?!
                             "n_estimators": estimators,
                             "max_depth": depth}
                 
@@ -273,13 +273,12 @@ for splits in params["number_of_splits"]:
                     # TO DO: log your parameters. What parameters are important to log?
                     # HINT: You can get access to the transformers in your pipeline using 'pipeline.steps'
                 
-                    model = XGBRegressor(n_estimators=estimators,
-                                            max_depth = depth,
-                                            learning_rate = learning_rate)
-                
+                    model = RandomForestRegressor(n_estimators=estimators,
+                                            max_depth = depth)
+
                 
                     for train, test in TimeSeriesSplit(splits).split(X,y):
-                        pipeline = pipe(model, degree = 2)
+                        pipeline = pipe(model, degree = degree)
                         pipeline.fit(X.iloc[train], y.iloc[train].values.ravel())
                         predictions = pipeline.predict(X.iloc[test])
                         truth = y.iloc[test]
