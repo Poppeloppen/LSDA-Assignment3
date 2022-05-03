@@ -16,7 +16,7 @@ mlflow.set_tracking_uri(ws.get_mlflow_tracking_uri())
 
 #Set experiment name
 #mlflow.set_experiment("vhen - Experiments")
-mlflow.set_experiment("TEST - XGBRegressor2")
+mlflow.set_experiment("TEST_XGBRegressor2")
 
 #Import usefull libraries
 from sklearn.pipeline import Pipeline
