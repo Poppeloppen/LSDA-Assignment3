@@ -4,8 +4,11 @@ conda_env: conda.yaml
 
 entry_points:
   #For training a lot of models
-  train:
-    command: "python3 a3.py"
+  train_RanFor:
+    command: "python3 train_RanFor.py"
+
+  train_XGBReg:
+    command: "python3 train_XGBReg.py"
 
   #For finding the run with the best performance
   find_best:
