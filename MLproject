@@ -3,17 +3,29 @@ name: a3_model
 conda_env: conda.yaml
 
 entry_points:
-  #For training a lot of models
+
+  ################################################
+  # Training models
+  ################################################
+  train_LinReg:
+    command: "python3 train_LinReg.py
+
   train_RanFor:
     command: "python3 train_RanFor.py"
 
   train_XGBReg:
     command: "python3 train_XGBReg.py"
 
+  
+  ################################################
   #For finding the run with the best performance
+  ################################################
   find_best:
     command: "python3 best_model.py"
 
+
+  ################################################
   #Query the best model
+  ################################################
   main:
     command: "python3 get_pred.py"
